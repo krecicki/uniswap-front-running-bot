@@ -1,12 +1,13 @@
 import requests
 import time
 from web3 import Web3
+import config
 
-# Configuration
-ETHERSCAN_API_KEY = "YOUR_ETHERSCAN_API_KEY"
-INFURA_URL = "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID"
-PRIVATE_KEY = "YOUR_PRIVATE_KEY"
-UNISWAP_POOL_ADDRESS = "UNISWAP_POOL_CONTRACT_ADDRESS"
+# Use configuration values
+etherscan_api_key = config.ETHERSCAN_API_KEY
+infura_url = config.INFURA_URL
+private_key = config.PRIVATE_KEY
+uniswap_pool_address = config.UNISWAP_POOL_ADDRESS
 
 # Initialize Web3
 web3 = Web3(Web3.HTTPProvider(INFURA_URL))
@@ -48,7 +49,7 @@ def place_transaction(to_address, value, gas_price):
     return web3.toHex(tx_hash)
 
 def limit_trade_size(amount):
-    max_trade_size = 5 * 10**18  # Max 5 ETH
+    max_trade_size = config.MAX_TRADE_SIZE * 10**18 
     return min(amount, max_trade_size)
 
 def main():
@@ -65,10 +66,10 @@ def main():
                 print(f"Large Order: {order['id']}, Token Pair: {order['pair']['token0']['symbol']}/{order['pair']['token1']['symbol']}, Value: {order['amountUSD']} USD")
 
                 # If a large order is found, place a  transaction
-                if float(order['amountUSD']) > 100000:  # Example threshold
+                if float(order['amountUSD']) > config.LARGE_ORDER_THRESHOLD:
                     to_address = UNISWAP_POOL_ADDRESS
                     value = limit_trade_size(web3.toWei(1, 'ether'))  # Example value
-                    gas_price = web3.toWei('200', 'gwei')  # Higher gas price for 
+                    gas_price = web3.toWei(str(config.GAS_PRICE), 'gwei')  # Higher gas price for 
 
                     tx_hash = place_transaction(to_address, value, gas_price)
                     print(f"Placed  transaction: {tx_hash}")

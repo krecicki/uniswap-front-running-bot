@@ -68,7 +68,7 @@ The  bot is designed to automate the process of identifying profitable trading o
 Run the bot using the following command:
 
 ```
-python bot.py
+python app.py
 ```
 
 The bot will start monitoring the mempool and print information about pending transactions and large orders it identifies. When it detects a potentially profitable opportunity, it will attempt to place a  transaction.

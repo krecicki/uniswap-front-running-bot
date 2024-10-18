@@ -1,23 +1,21 @@
-import requests
 import time
+import requests
 from web3 import Web3
 import config
 
-# Use configuration values
-etherscan_api_key = config.ETHERSCAN_API_KEY
-infura_url = config.INFURA_URL
-private_key = config.PRIVATE_KEY
-uniswap_pool_address = config.UNISWAP_POOL_ADDRESS
-
 # Initialize Web3
-web3 = Web3(Web3.HTTPProvider(INFURA_URL))
-account = web3.eth.account.from_key(PRIVATE_KEY)
+web3 = Web3(Web3.HTTPProvider(config.INFURA_URL))
+account = web3.eth.account.from_key(config.PRIVATE_KEY)
 address = account.address
 
 def monitor_mempool():
-    url = f"https://api.etherscan.io/api?module=account&action=txlist&address={UNISWAP_POOL_ADDRESS}&startblock=0&endblock=99999999&sort=asc&apikey={ETHERSCAN_API_KEY}"
+    url = f"https://api.etherscan.io/api?module=account&action=txlist&address={config.UNISWAP_POOL_ADDRESS}&startblock=0&endblock=99999999&sort=asc&apikey={config.ETHERSCAN_API_KEY}"
     response = requests.get(url)
-    return response.json()['result']
+    if response.status_code == 200:
+        return response.json().get('result', [])
+    else:
+        print(f"Error fetching mempool data: {response.status_code}")
+        return []
 
 def identify_large_orders():
     url = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2"
@@ -34,31 +32,36 @@ def identify_large_orders():
     }
     """
     response = requests.post(url, json={'query': query})
-    return response.json()['data']['swaps']
+    if response.status_code == 200:
+        return response.json().get('data', {}).get('swaps', [])
+    else:
+        print(f"Error fetching large orders: {response.status_code}")
+        return []
 
-def place_transaction(to_address, value, gas_price):
+def place_transaction(to_address, value):
     tx = {
-        'nonce': web3.eth.getTransactionCount(address),
+        'nonce': web3.eth.get_transaction_count(address),
         'to': to_address,
         'value': value,
         'gas': 2000000,
-        'gasPrice': gas_price,
+        'gasPrice': web3.to_wei(config.GAS_PRICE, 'gwei'),
     }
-    signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-    tx_hash = web3.eth.sendRawTransaction(signed_tx.rawTransaction)
-    return web3.toHex(tx_hash)
+    signed_tx = account.sign_transaction(tx)
+    tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    return web3.to_hex(tx_hash)
 
 def limit_trade_size(amount):
-    max_trade_size = config.MAX_TRADE_SIZE * 10**18 
+    max_trade_size = web3.to_wei(config.MAX_TRADE_SIZE, 'ether')
     return min(amount, max_trade_size)
 
 def main():
+    print("Starting  bot...")
     while True:
         try:
             # Monitor mempool
             pending_transactions = monitor_mempool()
             for tx in pending_transactions:
-                print(f"Pending Transaction: {tx['hash']}, Value: {int(tx['value']) / 10**18} ETH, Gas Price: {tx['gasPrice']}")
+                print(f"Pending Transaction: {tx['hash']}, Value: {web3.from_wei(int(tx['value']), 'ether')} ETH, Gas Price: {web3.from_wei(int(tx['gasPrice']), 'gwei')} Gwei")
 
             # Identify large orders
             large_orders = identify_large_orders()
@@ -67,11 +70,10 @@ def main():
 
                 # If a large order is found, place a  transaction
                 if float(order['amountUSD']) > config.LARGE_ORDER_THRESHOLD:
-                    to_address = UNISWAP_POOL_ADDRESS
-                    value = limit_trade_size(web3.toWei(1, 'ether'))  # Example value
-                    gas_price = web3.toWei(str(config.GAS_PRICE), 'gwei')  # Higher gas price for 
+                    to_address = config.UNISWAP_POOL_ADDRESS
+                    value = limit_trade_size(web3.to_wei(1, 'ether'))  # Example value
 
-                    tx_hash = place_transaction(to_address, value, gas_price)
+                    tx_hash = place_transaction(to_address, value)
                     print(f"Placed  transaction: {tx_hash}")
 
             time.sleep(10)  # Wait for 10 seconds before next iteration

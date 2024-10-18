@@ -1,6 +1,5 @@
 # uniswap-front-running-bot
 Experimental front running bot. Please fork and add changes and let us make this great.
-#  Bot for Ethereum Trading
 
 This project implements a  bot for Ethereum trading. The bot monitors the Ethereum mempool for pending transactions, identifies large buy/sell orders, and attempts to profit from price changes by placing transactions with higher gas fees.
 
